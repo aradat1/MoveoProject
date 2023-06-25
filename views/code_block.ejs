@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/styles.css">
+  <title>Code Block</title>
+</head>
+<body>
+  <div class="container">
+    <h1><%= codeBlock.title %></h1>
+    <textarea <% if (codeBlock.mentorId !== null) { %>readonly<% } %>><%= codeBlock.code %></textarea>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    socket.on('connect', () => {
+      const mentorId = getParameterByName('mentorId');
+      if (mentorId) {
+        socket.emit('joinAsMentor', { mentorId });
+      } else {
+        socket.emit('joinAsStudent');
+      }
+    });
+
+    socket.on('mentorId', (mentorId) => {
+      const codeInput = document.querySelector('textarea');
+      codeInput.disabled = socket.id !== mentorId;
+    });
+
+    socket.on('codeUpdated', (data) => {
+      const codeInput = document.querySelector('textarea');
+      codeInput.value = data.code;
+    });
+
+    document.querySelector('textarea').addEventListener('input', (event) => {
+      const updatedCode = event.target.value;
+      socket.emit('codeChange', { code: updatedCode });
+    });
+
+    function getParameterByName(name, url = window.location.href) {
+      name = name.replace(/[[\]]/g, '\\$&');
+      const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+        results = regex.exec(url);
+      if (!results) return null;
+      if (!results[2]) return '';
+      return decodeURIComponent(results[2].replace(/\+/g, ' '));
+    }
+  </script>
+</body>
+</html>
