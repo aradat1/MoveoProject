@@ -3,32 +3,62 @@ const app = express();
 const path = require('path');
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+const admin = require('firebase-admin');
+const serviceAccount = require('./serviceAccountKey.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://moveoproject-01.firebaseio.com"
+});
+
+const db = admin.firestore();
+const codeBlocksCollection = db.collection('codeBlocks');
 
 app.use(express.static('public'));
 
-const codeBlocks = [
-  { id: '1', title: 'Async case', code: '/* Your code here */', mentorId: null },
-  { id: '2', title: 'Conditional Statements', code: '/* Your code here */', mentorId: null },
-  { id: '3', title: 'Loops (For Loop)', code: '/* Your code here */', mentorId: null },
-  { id: '4', title: 'Arrays and Array Manipulation', code: '/* Your code here */', mentorId: null }
-];
-
-app.set('view engine', 'ejs'); // Set the template engine to EJS
-app.set('views', path.join(__dirname, 'views')); // Set the views directory
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 app.get('/', (req, res) => {
-  res.render('index', { codeBlocks });
+  codeBlocksCollection.get()
+    .then(snapshot => {
+      const codeBlocks = [];
+      snapshot.forEach(doc => {
+        const codeBlock = doc.data();
+        codeBlocks.push(codeBlock);
+      });
+      res.render('index', { codeBlocks });
+    })
+    .catch(error => {
+      console.error('Error getting code blocks:', error);
+      res.status(500).send('Internal Server Error');
+    });
 });
 
 app.get('/code_block', (req, res) => {
-  const code = req.query.code;
-  const selectedCodeBlock = codeBlocks.find(block => block.id === code);
+  const codeId = req.query.code;
+  console.log('Code ID:', codeId);
+  const isMentor = req.query.mentor === 'true';
+  console.log('Is Mentor:', isMentor);
 
-  if (selectedCodeBlock) {
-    res.render('code_block', { codeBlock: selectedCodeBlock });
-  } else {
-    res.status(404).send('Code block not found');
-  }
+  codeBlocksCollection.where('id', '==', codeId).get()
+    .then((snapshot) => {
+      if (!snapshot.empty) {
+        // Document found, retrieve the data
+        const codeBlock = snapshot.docs[0].data();
+        // Render the code_block.ejs template and pass the codeBlock data
+        res.render('code_block', { codeBlock });
+      } else {
+        // Document not found
+        console.log('Code Block not found');
+        res.sendStatus(404);
+      }
+    })
+    .catch((error) => {
+      // Error occurred while fetching the document
+      console.error('Error fetching Code Block:', error);
+      res.sendStatus(500);
+    });
 });
 
 const PORT = process.env.PORT || 3000;

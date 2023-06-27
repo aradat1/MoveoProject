@@ -1,52 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="/styles.css">
-  <title>Code Block page</title>
+  <title>Code Block</title>
 </head>
+
 <body>
   <div class="container">
     <h1><%= codeBlock.title %></h1>
-    <textarea <% if (codeBlock.mentorId !== null) { %>readonly<% } %>><%= codeBlock.code %></textarea>
+    <div class="code-container">
+      <pre><code class="javascript"><%= codeBlock.code %></code></pre>
+    </div>
+    <div class="solution-container">
+      <h3>Your Solution:</h3>
+      <textarea id="user-solution" class="solution-input"></textarea>
+      <button id="check-button">Check Solution</button>
+    </div>
+    <div id="result-message"></div>
   </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
 
-    socket.on('connect', () => {
-      const mentorId = getParameterByName('mentorId');
-      if (mentorId) {
-        socket.emit('joinAsMentor', { mentorId });
+    const userSolutionInput = document.getElementById('user-solution');
+    const checkButton = document.getElementById('check-button');
+    const resultMessage = document.getElementById('result-message');
+
+    checkButton.addEventListener('click', () => {
+      const userSolution = userSolutionInput.value;
+      const correctSolution = '<%= codeBlock.solution %>';
+
+      if (userSolution === correctSolution) {
+        resultMessage.textContent = 'Correct! \uD83D\uDE0A';
       } else {
-        socket.emit('joinAsStudent');
+        resultMessage.textContent = 'Wrong! \uD83D\uDE22';
       }
     });
 
-    socket.on('mentorId', (mentorId) => {
-      const codeInput = document.querySelector('textarea');
-      codeInput.disabled = socket.id !== mentorId;
+    socket.on('connect', () => {
+      console.log('Connected to server');
     });
 
-    socket.on('codeUpdated', (data) => {
-      const codeInput = document.querySelector('textarea');
-      codeInput.value = data.code;
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
     });
-
-    document.querySelector('textarea').addEventListener('input', (event) => {
-      const updatedCode = event.target.value;
-      socket.emit('codeChange', { code: updatedCode });
-    });
-
-    function getParameterByName(name, url = window.location.href) {
-      name = name.replace(/[[\]]/g, '\\$&');
-      const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-        results = regex.exec(url);
-      if (!results) return null;
-      if (!results[2]) return '';
-      return decodeURIComponent(results[2].replace(/\+/g, ' '));
-    }
   </script>
 </body>
+
 </html>
